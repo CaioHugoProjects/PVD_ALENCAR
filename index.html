@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sistema de Vendas Mobile</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <style>
+        /* Controle de Telas (SPA) */
+        .tela { display: none; }
+        .tela.ativa { display: block; animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        
+        /* Ajuste do Menu Inferior para iOS (Safe Area) */
+        body { padding-bottom: calc(70px + env(safe-area-inset-bottom)); }
+        .nav-bottom { padding-bottom: env(safe-area-inset-bottom); }
+
+        /* Evitar Zoom automático no iOS ao focar em inputs */
+        @media screen and (max-width: 768px) {
+            input, select, textarea { font-size: 16px !important; }
+        }
+
+        /* Scrollbars customizadas para tabelas em telemóvel */
+        .scroll-x { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        .scroll-x::-webkit-scrollbar { height: 5px; }
+        .scroll-x::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans">
+
+    <!-- CABEÇALHO GLOBAL -->
+    <header class="bg-blue-600 text-white p-4 shadow-md sticky top-0 z-10">
+        <div class="max-w-3xl mx-auto flex justify-between items-center">
+            <h1 id="titulo_app" class="text-lg sm:text-xl font-bold truncate pr-2">Novo Pedido & Cliente</h1>
+            <span class="text-[10px] sm:text-xs bg-blue-700 px-2 py-1 rounded whitespace-nowrap">PDV Mobile</span>
+        </div>
+    </header>
+
+    <main class="max-w-3xl mx-auto p-2 sm:p-4 mt-2 space-y-4 sm:space-y-6">
+
+        <!-- ============================================== -->
+        <!-- TELA 1: VENDAS E CLIENTE                       -->
+        <!-- ============================================== -->
+        <section id="tela-vendas" class="tela ativa space-y-4 sm:space-y-6">
+            <div class="bg-white p-4 sm:p-5 rounded-lg shadow-sm border border-slate-200">
+                <h2 class="text-base sm:text-lg font-semibold border-b pb-2 mb-4 text-blue-600">1. Dados do Cliente</h2>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                    <div class="sm:col-span-2 flex flex-col sm:flex-row gap-2 items-end">
+                        <div class="flex-1 w-full">
+                            <label class="block text-xs sm:text-sm font-medium text-slate-700">CPF (Digite e Enter para buscar)</label>
+                            <input type="tel" id="cpf" placeholder="000.000.000-00" class="mt-1 block w-full rounded border-slate-300 border p-2.5 sm:p-2 focus:border-blue-500 focus:ring-blue-500" maxlength="14" oninput="if(typeof mascaraCPF === 'function') mascaraCPF(this)" onkeypress="if(event.key === 'Enter') buscarCliente()">
+                        </div>
+                        <button type="button" onclick="buscarCliente()" class="w-full sm:w-auto bg-slate-800 text-white px-4 py-3 sm:py-2 rounded font-bold hover:bg-slate-700 transition">Buscar</button>
+                    </div>
+                    <div class="sm:col-span-2">
+                        <label class="block text-xs sm:text-sm font-medium text-slate-700">Nome Completo</label>
+                        <input type="text" id="nome" class="mt-1 block w-full rounded border-slate-300 border p-2.5 sm:p-2">
+                    </div>
+                    <div>
+                        <label class="block text-xs sm:text-sm font-medium text-slate-700">RG</label>
+                        <input type="tel" id="rg" class="mt-1 block w-full rounded border-slate-300 border p-2.5 sm:p-2">
+                    </div>
+                    <div>
+                        <label class="block text-xs sm:text-sm font-medium text-slate-700">Data de Nascimento</label>
+                        <input type="date" id="data_nasc" class="mt-1 block w-full rounded border-slate-300 border p-2.5 sm:p-2">
+                    </div>
+                    <div class="sm:col-span-2"><h3 class="text-sm font-semibold text-slate-500 mt-2">Endereço</h3></div>
+                    <div class="sm:col-span-2 grid grid-cols-4 gap-2">
+                        <div class="col-span-3">
+                            <label class="block text-xs text-slate-500">Logradouro (Rua, Av)</label>
+                            <input type="text" id="logradouro" class="mt-1 block w-full rounded border-slate-300 border p-2.5 sm:p-2">
+                        </div>
+                        <div class="col-span-1">
+                            <label class="block text-xs text-slate-500">Número</label>
+                            <input type="tel" id="numero" class="mt-1 block w-full rounded border-slate-300 border p-2.5 sm:p-2">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-500">Bairro</label>
+                        <input type="text" id="bairro" class="mt-1 block w-full rounded border-slate-300 border p-2.5 sm:p-2">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-500">Complemento</label>
+                        <input type="text" id="complemento" class="mt-1 block w-full rounded border-slate-300 border p-2.5 sm:p-2">
+                    </div>
+                    <div class="sm:col-span-2">
+                        <label class="block text-xs text-slate-500">Ponto de Referência</label>
+                        <input type="text" id="referencia" class="mt-1 block w-full rounded border-slate-300 border p-2.5 sm:p-2">
+                    </div>
+                    <div class="sm:col-span-2" id="telefones_container">
+                        <label class="block text-xs sm:text-sm font-medium text-slate-700">Telefones</label>
+                        <div class="flex gap-2 mt-1 mb-2">
+                            <input type="tel" name="telefone[]" placeholder="(00) 00000-0000" class="block w-full rounded border-slate-300 border p-2.5 sm:p-2">
+                            <button type="button" onclick="adicionarTelefone()" class="bg-green-100 text-green-700 px-4 rounded border hover:bg-green-200 font-bold">+</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white p-4 sm:p-5 rounded-lg shadow-sm border border-slate-200">
+                <h2 class="text-base sm:text-lg font-semibold border-b pb-2 mb-4 text-blue-600">2. Informações do Pedido</h2>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+                    <div><label class="block text-xs sm:text-sm font-medium text-slate-700">Cidade da Venda</label><input type="text" id="cidade" class="mt-1 block w-full rounded border-slate-300 border p-2.5 sm:p-2"></div>
+                    <div><label class="block text-xs sm:text-sm font-medium text-slate-700">Data da Compra</label><input type="date" id="data_compra" class="mt-1 block w-full rounded border-slate-300 border p-2.5 sm:p-2"></div>
+                </div>
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 p-3 sm:p-4 bg-slate-50 border rounded">
+                    <div><label class="block text-[10px] sm:text-xs font-semibold text-slate-700">Parcelas (Qtd)</label><input type="number" id="qtd_parcelas" min="1" max="12" value="1" class="mt-1 block w-full rounded border-slate-300 border p-2 text-center"></div>
+                    <div><label class="block text-[10px] sm:text-xs font-semibold text-slate-700">1º Vencimento</label><input type="date" id="data_vencimento" class="mt-1 block w-full rounded border-slate-300 border p-2 border-l-4 border-l-amber-500"></div>
+                    <div><label class="block text-[10px] sm:text-xs font-semibold text-slate-700">Juros Atraso (%)</label><input type="number" id="taxa_juros" step="0.1" value="0" class="mt-1 block w-full rounded border-slate-300 border p-2 text-center text-red-600"></div>
+                    <div><label class="block text-[10px] sm:text-xs font-semibold text-slate-700">Carência (Dias)</label><input type="number" id="dias_carencia" value="0" class="mt-1 block w-full rounded border-slate-300 border p-2 text-center"></div>
+                </div>
+            </div>
+
+           <div class="bg-white p-4 sm:p-5 rounded-lg shadow-sm border border-slate-200">
+                <h2 class="text-base sm:text-lg font-semibold border-b pb-2 mb-4 text-blue-600">3. Produtos</h2>
+                <div class="flex flex-col sm:flex-row gap-3 items-end bg-slate-50 p-3 rounded border">
+                    <div class="flex-1 w-full relative">
+                        <label class="block text-xs font-medium text-slate-700">Buscar Produto</label>
+                        <input type="text" id="busca_produto" class="mt-1 block w-full rounded border-slate-300 border p-2.5 sm:p-2 bg-white" placeholder="Ex: Tênis, Perfume..." onkeyup="filtrarDropdownProdutos()" onfocus="mostrarDropdownProdutos()">
+                        <input type="hidden" id="produto_selecionado_id"><input type="hidden" id="produto_selecionado_nome">
+                        <div id="dropdown_produtos" class="hidden absolute z-20 w-full bg-white border border-slate-300 mt-1 max-h-48 overflow-y-auto rounded shadow-xl text-sm"></div>
+                    </div>
+                    <div class="w-full sm:w-40">
+                        <label class="block text-xs font-medium text-slate-700">Valor (R$)</label>
+                        <input type="number" id="valor_produto" step="0.01" class="mt-1 block w-full rounded border-slate-300 border p-2.5 sm:p-2" placeholder="0.00">
+                    </div>
+                    <button type="button" onclick="adicionarProduto()" class="w-full sm:w-auto bg-blue-600 text-white px-5 py-2.5 rounded font-bold hover:bg-blue-700 whitespace-nowrap">Adicionar</button>
+                </div>
+                <div class="mt-4 border rounded scroll-x w-full">
+                    <table class="min-w-full divide-y divide-slate-200 text-sm">
+                        <thead class="bg-slate-100"><tr><th class="px-3 py-2 text-left text-slate-600 whitespace-nowrap">Produto</th><th class="px-3 py-2 text-right text-slate-600">Valor</th><th class="px-3 py-2 text-center text-slate-600">Remover</th></tr></thead>
+                        <tbody id="tabela_carrinho" class="bg-white divide-y divide-slate-200"></tbody>
+                        <tfoot class="bg-slate-50"><tr><td class="px-3 py-3 text-right font-bold text-xs sm:text-sm">TOTAL:</td><td class="px-3 py-3 text-right font-bold text-blue-600 text-base sm:text-lg whitespace-nowrap" id="total_pedido">R$ 0,00</td><td></td></tr></tfoot>
+                    </table>
+                </div>
+            </div>
+            <div class="flex flex-col-reverse sm:flex-row justify-end gap-3 mt-6 pb-4">
+                <button class="w-full sm:w-auto px-6 py-3 sm:py-2 border rounded font-medium text-slate-600 hover:bg-slate-50" onclick="location.reload()">Cancelar</button>
+                <button class="w-full sm:w-auto px-6 py-3 sm:py-2 bg-green-600 text-white font-bold rounded shadow-lg hover:bg-green-700" onclick="finalizarPedido()">Finalizar Venda</button>
+            </div>
+        </section>
+
+        <!-- ============================================== -->
+        <!-- TELA 2: CONSULTAS E FINANCEIRO                 -->
+        <!-- ============================================== -->
+        <section id="tela-consultas" class="tela space-y-4 sm:space-y-6">
+            <div class="grid grid-cols-2 md:grid-cols-3 gap-2 sm:gap-3">
+                <div class="bg-white border-l-4 border-red-500 p-2 sm:p-3 rounded shadow-sm"><p class="text-[9px] sm:text-xs text-slate-500 font-bold uppercase">Atrasadas</p><p class="text-lg sm:text-xl font-bold text-red-600" id="count_atrasados">0</p></div>
+                <div class="bg-white border-l-4 border-amber-500 p-2 sm:p-3 rounded shadow-sm"><p class="text-[9px] sm:text-xs text-slate-500 font-bold uppercase">A Vencer (10d)</p><p class="text-lg sm:text-xl font-bold text-amber-600" id="count_proximos">0</p></div>
+                <div class="bg-white border-l-4 border-emerald-500 p-2 sm:p-3 rounded shadow-sm col-span-2 md:col-span-1"><p class="text-[9px] sm:text-xs text-slate-500 font-bold uppercase">Recebido Mês</p><p class="text-lg sm:text-xl font-bold text-emerald-600" id="valor_recebido">R$ 0,00</p></div>
+            </div>
+
+<div class="bg-white p-4 rounded-lg shadow-sm border border-slate-200">
+                <h2 class="text-sm font-semibold text-slate-700 mb-3">Pesquisar Vendas</h2>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
+                    <div>
+                        <label class="block text-[10px] sm:text-xs text-slate-500">Nome do Cliente</label>
+                        <input type="text" id="filtro_nome" class="mt-1 block w-full rounded border-slate-300 border p-2 text-sm" onkeyup="filtrarVendas()" placeholder="Ex: Maria">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] sm:text-xs text-slate-500">CPF</label>
+                        <input type="tel" id="filtro_cpf" class="mt-1 block w-full rounded border-slate-300 border p-2 text-sm" onkeyup="filtrarVendas()" placeholder="Apenas números">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] sm:text-xs text-slate-500">Data Compra</label>
+                        <input type="date" id="filtro_data" class="mt-1 block w-full rounded border-slate-300 border p-2 text-sm" onchange="filtrarVendas()">
+                    </div>
+                </div>
+                <button onclick="limparFiltros()" class="mt-3 text-xs text-blue-600 underline">Limpar Filtros</button>
+            </div>
+
+            <div>
+                <h2 class="text-sm font-semibold text-slate-700 mb-3 flex justify-between"><span>Vendas e Parcelas</span><span id="total_resultados" class="bg-slate-200 px-2 py-0.5 rounded text-xs">0</span></h2>
+                <div id="lista_vendas" class="space-y-3"><div class="text-center p-5 bg-white rounded border text-slate-500 text-sm">A carregar...</div></div>
+            </div>
+
+            <!-- MODAL REAJUSTE -->
+            <div id="modal_reajuste" class="hidden fixed inset-0 bg-slate-900 bg-opacity-70 z-50 flex items-center justify-center p-4">
+                <div class="bg-white rounded-lg shadow-xl w-full max-w-sm p-5">
+                    <h3 class="font-bold text-lg mb-2">Reajustar Vencimentos</h3>
+                    <p class="text-xs text-slate-600 mb-4">Selecione a nova data para a próxima parcela. As demais avançam 1 mês automaticamente.</p>
+                    <input type="hidden" id="reajuste_pedido_id">
+                    <input type="date" id="nova_data_base" class="w-full rounded border-slate-300 border p-3 mb-4">
+                    <div class="flex flex-col-reverse sm:flex-row justify-end gap-2">
+                        <button onclick="fecharModalReajuste()" class="w-full sm:w-auto px-4 py-3 sm:py-2 border rounded font-medium">Cancelar</button>
+                        <button onclick="salvarReajuste()" class="w-full sm:w-auto px-4 py-3 sm:py-2 bg-blue-600 text-white rounded font-bold">Aplicar</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MODAL EDITAR PEDIDO -->
+            <div id="modal_editar_pedido" class="hidden fixed inset-0 bg-slate-900 bg-opacity-70 z-50 flex flex-col items-center justify-center p-2">
+                <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[95vh] overflow-y-auto p-3 sm:p-5 relative flex flex-col">
+                    <div class="flex justify-between items-center mb-3 border-b pb-2 sticky top-0 bg-white z-10">
+                        <h3 class="font-bold text-base sm:text-lg text-slate-800"><i class="fa-solid fa-pen-to-square"></i> Editar Venda</h3>
+                        <button onclick="fecharModalEditar()" class="text-slate-400 hover:text-red-500 text-2xl font-bold px-2">&times;</button>
+                    </div>
+                    <div class="flex-1">
+                        <input type="hidden" id="edit_pedido_id">
+                        <div class="grid grid-cols-2 gap-2 sm:gap-3 mb-3">
+                            <div><label class="block text-[10px] sm:text-xs font-semibold">Cidade</label><input type="text" id="edit_cidade" class="w-full rounded border p-2 sm:p-1.5 text-sm"></div>
+                            <div><label class="block text-[10px] sm:text-xs font-semibold">Data</label><input type="date" id="edit_data_compra" class="w-full rounded border p-2 sm:p-1.5 text-sm"></div>
+                        </div>
+                        <div class="bg-slate-50 p-2 sm:p-3 rounded border mb-3">
+                            <h4 class="text-xs sm:text-sm font-bold text-blue-600 mb-2">Produtos</h4>
+                            <div class="flex flex-col sm:flex-row gap-2 items-end mb-2 relative">
+                                <div class="flex-1 w-full">
+                                    <input type="text" id="edit_busca_produto" class="w-full rounded border p-2 text-sm" placeholder="Buscar..." onkeyup="filtrarDropdownEdit()" onfocus="mostrarDropdownEdit()">
+                                    <input type="hidden" id="edit_produto_id"><input type="hidden" id="edit_produto_nome">
+                                    <div id="dropdown_edit_produtos" class="hidden absolute z-20 w-full bg-white border mt-1 max-h-40 overflow-y-auto rounded shadow-xl text-sm"></div>
+                                </div>
+                                <div class="flex w-full sm:w-auto gap-2">
+                                    <input type="number" id="edit_valor_produto" step="0.01" placeholder="Valor" class="flex-1 sm:w-24 rounded border p-2 text-sm">
+                                    <button type="button" onclick="adicionarProdutoEdit()" class="bg-blue-600 text-white px-3 py-2 rounded font-bold text-sm">Add</button>
+                                </div>
+                            </div>
+                            <div class="scroll-x w-full border rounded bg-white">
+                                <table class="min-w-full divide-y text-xs sm:text-sm"><tbody id="tabela_edit_carrinho" class="divide-y"></tbody></table>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-blue-50 p-2 sm:p-3 rounded border border-blue-100 mb-3 text-xs sm:text-sm">
+                            <div class="col-span-2 sm:col-span-4 grid grid-cols-3 gap-1 mb-2 pb-2 border-b border-blue-200">
+                                <div class="text-center"><p class="text-[9px] text-slate-500 font-bold uppercase">Novo Total</p><p class="font-bold text-blue-700 text-sm" id="edit_resumo_total">R$ 0,00</p></div>
+                                <div class="text-center border-l"><p class="text-[9px] text-slate-500 font-bold uppercase">Já Pago</p><p class="font-bold text-emerald-600 text-sm" id="edit_resumo_pago">R$ 0,00</p></div>
+                                <div class="text-center border-l"><p class="text-[9px] text-slate-500 font-bold uppercase">Saldo</p><p class="font-bold text-red-600 text-sm" id="edit_resumo_saldo">R$ 0,00</p></div>
+                            </div>
+                            <div><label class="block text-[10px] font-semibold">Qtd Parc</label><input type="number" id="edit_qtd_parcelas" min="1" value="1" class="w-full rounded border p-1.5 text-center"></div>
+                            <div><label class="block text-[10px] font-semibold">Venc. Saldo</label><input type="date" id="edit_data_vencimento" class="w-full rounded border p-1.5"></div>
+                            <div><label class="block text-[10px] font-semibold">Juros (%)</label><input type="number" id="edit_taxa_juros" step="0.1" class="w-full rounded border p-1.5 text-center"></div>
+                            <div><label class="block text-[10px] font-semibold">Carência</label><input type="number" id="edit_dias_carencia" class="w-full rounded border p-1.5 text-center"></div>
+                        </div>
+                        <p id="aviso_saldo_negativo" class="hidden text-[10px] text-red-600 font-bold mb-2 text-center bg-red-50 p-1.5 rounded border">Total é menor que o já pago.</p>
+                    </div>
+                    <div class="flex flex-col sm:flex-row justify-end gap-2 mt-2 pt-2 border-t sticky bottom-0 bg-white">
+                        <button onclick="fecharModalEditar()" class="w-full sm:w-auto px-4 py-3 sm:py-2 border rounded font-medium">Cancelar</button>
+                        <button id="btn_salvar_edicao" onclick="salvarEdicaoPedido()" class="w-full sm:w-auto px-4 py-3 sm:py-2 bg-green-600 text-white rounded font-bold shadow">Salvar Edição</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================== -->
+        <!-- TELA 3: ESTOQUE E PRODUTOS                     -->
+        <!-- ============================================== -->
+        <section id="tela-estoque" class="tela space-y-4 sm:space-y-6">
+            <div class="bg-white p-4 sm:p-5 rounded-lg shadow-sm border border-slate-200">
+                <h2 class="text-base sm:text-lg font-semibold border-b pb-2 mb-4 text-blue-600">Novo Produto</h2>
+                <form id="form_produto" onsubmit="salvarProduto(event)">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                        <div class="sm:col-span-2"><label class="block text-xs sm:text-sm font-medium">Nome do Produto</label><input type="text" id="prod_nome" required class="mt-1 block w-full rounded border p-2.5 sm:p-2"></div>
+                        <div><label class="block text-xs sm:text-sm font-medium">Marca</label><input type="text" id="prod_marca" required class="mt-1 block w-full rounded border p-2.5 sm:p-2"></div>
+                        <div>
+                            <label class="block text-xs sm:text-sm font-medium">Categoria</label>
+                            <input list="lista_categorias" id="prod_tipo" required class="mt-1 block w-full rounded border p-2.5 sm:p-2">
+                            <datalist id="lista_categorias">
+                                <option value="Roupas e Vestuário"><option value="Calçados"><option value="Perfumaria"><option value="Cosméticos e Beleza"><option value="Eletrônicos"><option value="Acessórios"><option value="Serviços">
+                            </datalist>
+                        </div>
+                        <div><label class="block text-xs sm:text-sm font-medium">Valor Base (R$)</label><input type="number" id="prod_valor" step="0.01" required class="mt-1 block w-full rounded border p-2.5 sm:p-2"></div>
+                        <div class="sm:col-span-2"><label class="block text-xs sm:text-sm font-medium">Descrição (Opcional)</label><textarea id="prod_desc" rows="2" class="mt-1 block w-full rounded border p-2"></textarea></div>
+
+                        <div class="sm:col-span-2 mt-2 p-3 sm:p-4 bg-slate-50 border rounded">
+                            <div class="flex justify-between items-center mb-3 border-b pb-2">
+                                <div><h3 class="text-xs sm:text-sm font-semibold">Variações e Estoque</h3></div>
+                                <button type="button" onclick="adicionarVariacao()" class="text-[10px] sm:text-xs bg-blue-100 text-blue-700 px-3 py-1.5 sm:py-1 rounded border font-bold ml-2">+ Variação</button>
+                            </div>
+                            <div id="container_variacoes" class="space-y-3">
+                                <div class="flex flex-wrap sm:flex-nowrap gap-2 items-end variacao-item">
+                                    <div class="w-[45%] sm:flex-1"><label class="block text-[10px] sm:text-xs">Tipo (Ex: Cor)</label><input type="text" required class="var-atributo mt-1 w-full rounded border p-2" value="Único"></div>
+                                    <div class="w-[45%] sm:flex-1"><label class="block text-[10px] sm:text-xs">Opção (Ex: M)</label><input type="text" required class="var-valor mt-1 w-full rounded border p-2" value="Padrão"></div>
+                                    <div class="w-16"><label class="block text-[10px] sm:text-xs">Qtd</label><input type="number" required min="0" class="var-qtd mt-1 w-full rounded border p-2 text-center"></div>
+                                    <button type="button" onclick="this.parentElement.remove()" class="mb-1 text-red-500 font-bold px-1 py-1 text-lg">&times;</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="sm:col-span-2 flex justify-end mt-2"><button type="submit" class="w-full sm:w-auto bg-green-600 text-white font-bold px-6 py-3 sm:py-2 rounded shadow hover:bg-green-700">Salvar no Catálogo</button></div>
+                    </div>
+                </form>
+            </div>
+
+            <div>
+                <div class="flex justify-between items-end mb-3">
+                    <h2 class="text-sm font-semibold text-slate-700">Estoque</h2>
+                    <input type="text" id="filtro_estoque" placeholder="Buscar produto..." class="rounded border p-1.5 sm:p-2 text-sm w-36 sm:w-64" onkeyup="filtrarEstoque()">
+                </div>
+                <div id="lista_estoque" class="space-y-3"><div class="text-center p-5 bg-white text-slate-500 text-sm border rounded">Carregando...</div></div>
+            </div>
+
+            <!-- MODAL DE EDIÇÃO DE PRODUTO -->
+            <div id="modal_editar_produto" class="hidden fixed inset-0 bg-slate-900 bg-opacity-70 z-50 flex items-center justify-center p-2">
+                <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[95vh] overflow-y-auto p-3 sm:p-5">
+                    <div class="flex justify-between items-center mb-3 border-b pb-2 sticky top-0 bg-white z-10">
+                        <h3 class="font-bold text-base sm:text-lg text-slate-800"><i class="fa-solid fa-box"></i> Editar Produto</h3>
+                        <button onclick="fecharModalEditarProduto()" class="text-slate-400 hover:text-red-500 font-bold text-2xl px-2">&times;</button>
+                    </div>
+                    <form id="form_edit_produto" onsubmit="salvarEdicaoProduto(event)">
+                        <input type="hidden" id="edit_prod_id_base">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                            <div class="sm:col-span-2"><label class="block text-xs sm:text-sm font-medium">Nome</label><input type="text" id="edit_prod_nome" required class="mt-1 block w-full rounded border p-2"></div>
+                            <div><label class="block text-xs sm:text-sm font-medium">Marca</label><input type="text" id="edit_prod_marca" required class="mt-1 block w-full rounded border p-2"></div>
+                            <div><label class="block text-xs sm:text-sm font-medium">Categoria</label><input type="text" id="edit_prod_tipo" required class="mt-1 block w-full rounded border p-2"></div>
+                            <div><label class="block text-xs sm:text-sm font-medium">Valor Base</label><input type="number" id="edit_prod_valor" step="0.01" required class="mt-1 block w-full rounded border p-2"></div>
+                            <div class="sm:col-span-2"><label class="block text-xs sm:text-sm font-medium">Descrição</label><textarea id="edit_prod_desc" rows="2" class="mt-1 block w-full rounded border p-2"></textarea></div>
+
+                            <div class="sm:col-span-2 mt-2 p-3 sm:p-4 bg-slate-50 border rounded">
+                                <div class="flex justify-between items-center mb-3 border-b pb-2">
+                                    <h3 class="text-xs sm:text-sm font-semibold">Variações</h3>
+                                    <button type="button" onclick="adicionarVariacaoEditModal()" class="text-[10px] sm:text-xs bg-blue-100 text-blue-700 px-3 py-1.5 sm:py-1 rounded border font-bold">+ Add</button>
+                                </div>
+                                <div id="container_edit_variacoes" class="space-y-3"></div>
+                            </div>
+                            <div class="sm:col-span-2 flex flex-col sm:flex-row justify-end mt-2 gap-2">
+                                <button type="button" onclick="fecharModalEditarProduto()" class="w-full sm:w-auto px-5 py-3 sm:py-2 border rounded font-medium">Cancelar</button>
+                                <button type="submit" id="btn_salvar_edit_prod" class="w-full sm:w-auto px-5 py-3 sm:py-2 bg-blue-600 text-white font-bold rounded shadow hover:bg-blue-700">Salvar Alterações</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- NAVEGAÇÃO INFERIOR FIXA (Com SafeArea) -->
+    <nav class="fixed bottom-0 w-full bg-white border-t border-slate-200 shadow-[0_-2px_10px_rgba(0,0,0,0.05)] z-20 nav-bottom">
+        <div class="max-w-md mx-auto flex justify-between h-[60px]">
+            <button onclick="mudarTela('tela-vendas', this, 'Novo Pedido')" class="menu-btn flex-1 flex flex-col items-center justify-center text-blue-600 transition-colors"><i class="fa-solid fa-cart-shopping text-lg sm:text-xl mb-1"></i><span class="text-[9px] sm:text-[10px] font-bold">Vender</span></button>
+            <button onclick="mudarTela('tela-consultas', this, 'Consultas')" class="menu-btn flex-1 flex flex-col items-center justify-center text-slate-400 transition-colors"><i class="fa-solid fa-wallet text-lg sm:text-xl mb-1"></i><span class="text-[9px] sm:text-[10px] font-bold">Finanças</span></button>
+            <button onclick="mudarTela('tela-estoque', this, 'Estoque')" class="menu-btn flex-1 flex flex-col items-center justify-center text-slate-400 transition-colors"><i class="fa-solid fa-box-open text-lg sm:text-xl mb-1"></i><span class="text-[9px] sm:text-[10px] font-bold">Estoque</span></button>
+        </div>
+    </nav>
+
+    <script>
+        function mudarTela(idAlvo, botaoClicado, novoTitulo) {
+            document.querySelectorAll('.tela').forEach(tela => tela.classList.remove('ativa'));
+            document.querySelectorAll('.menu-btn').forEach(btn => { btn.classList.remove('text-blue-600'); btn.classList.add('text-slate-400'); });
+            const telaAlvo = document.getElementById(idAlvo);
+            if (telaAlvo) {
+                telaAlvo.classList.add('ativa'); document.getElementById('titulo_app').innerText = novoTitulo;
+                botaoClicado.classList.remove('text-slate-400'); botaoClicado.classList.add('text-blue-600');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                if (idAlvo === 'tela-consultas' && typeof carregarVendas === 'function') carregarVendas();
+                if (idAlvo === 'tela-estoque' && typeof carregarEstoque === 'function') carregarEstoque();
+            }
+        }
+        function mascaraCPF(campo) {
+            let v = campo.value.replace(/\D/g, '');
+            if (v.length <= 11) { v = v.replace(/(\d{3})(\d)/, '$1.$2'); v = v.replace(/(\d{3})(\d)/, '$1.$2'); v = v.replace(/(\d{3})(\d{1,2})$/, '$1-$2'); }
+            campo.value = v;
+        }
+        let qtdTelefonesLayout = 1;
+        function adicionarTelefone() {
+            if(qtdTelefonesLayout >= 3) { alert("Máximo de 3 telefones."); return; }
+            const container = document.getElementById('telefones_container'); const div = document.createElement('div'); div.className = "flex gap-2 mt-2";
+            div.innerHTML = `<input type="tel" name="telefone[]" placeholder="(00) 00000-0000" class="block w-full rounded border p-2.5 sm:p-2"><button type="button" onclick="this.parentElement.remove(); qtdTelefonesLayout--;" class="bg-red-100 text-red-700 px-4 rounded border font-bold text-lg">&times;</button>`;
+            container.appendChild(div); qtdTelefonesLayout++;
+        }
+    </script>
+    <script src="script.js"></script>
+</body>
+</html>
